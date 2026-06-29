@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from trading_ai.ea_generator.features_map import EXPORT_SPEC
 from trading_ai.ea_generator.mql_common import (
-    array_1d, centroids_block, extract_model, model_constants,
+    array_1d, centroids_block, extract_model, model_constants, stable_magic,
 )
 
 
@@ -55,7 +55,7 @@ input int    InpMaxTradesDay= {risk.max_trades_per_day};       // Max trade al g
 input double InpMinADX      = 0.0;             // Filtro: ADX minimo (0=off)
 input int    InpStartHour   = -1;              // Filtro orario inizio (-1=off)
 input int    InpEndHour     = -1;              // Filtro orario fine
-input int    InpMagic       = {abs(hash(strategy.name)) % 90000 + 10000};        // Magic number univoco
+input int    InpMagic       = {stable_magic(strategy.name)};        // Magic number univoco (stabile)
 
 //--- Modello embeddato (scaler + centroidi KMeans) ---
 {array_1d('gMean', m['mean'])}
