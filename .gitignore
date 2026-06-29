@@ -15,6 +15,11 @@ env/
 datasets/*
 !datasets/.gitkeep
 !datasets/**/.gitkeep
+# ...ma CONSENTIAMO i file dati che carichi tu (CSV/TXT/Parquet) cosi' la
+# piattaforma li trova. NB: GitHub limita l'upload via web a 25 MB per file.
+!datasets/*.csv
+!datasets/*.txt
+!datasets/*.parquet
 models/*
 !models/.gitkeep
 logs/*
