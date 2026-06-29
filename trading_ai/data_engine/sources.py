@@ -66,16 +66,18 @@ def _try_kaggle_dataset(slug: str, dest: Path) -> bool:
     """
     if any(dest.glob("*.csv")) if dest.exists() else False:
         return True                                    # gia' scaricato in precedenza (cache)
+    # Catturiamo BaseException: la libreria kaggle, se non autenticata, puo'
+    # chiamare sys.exit() (SystemExit non e' una Exception) e farebbe crashare
+    # l'intero processo. Qui invece vogliamo un fallback pulito su altre fonti.
     try:
-        import kaggle  # dipendenza OPZIONALE; l'import autentica leggendo le credenziali
-    except Exception:
-        return False
-    try:
+        import kaggle  # dipendenza OPZIONALE
+        kaggle.api.authenticate()
         dest.mkdir(parents=True, exist_ok=True)
         kaggle.api.dataset_download_files(slug, path=str(dest), unzip=True, quiet=True)
         return any(dest.glob("*.csv"))
-    except Exception as e:                              # creds assenti, slug errato, rete...
-        logger.warning("Download Kaggle '%s' fallito (%s).", slug, e)
+    except BaseException as e:                          # creds assenti/errate, slug errato, rete...
+        logger.warning("Download Kaggle '%s' non riuscito (%s): uso un'altra fonte.",
+                       slug, str(e)[:160])
         return False
 
 
