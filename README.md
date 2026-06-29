@@ -48,9 +48,9 @@ trading-ai/
 |---|--------|-------|
 | 1 | **Data Engine** — import, pulizia, resampling, normalizzazione | ✅ Completato |
 | 2 | **Feature Engineering** — ATR, RSI, MACD, ADX, EMA/SMA, VWAP, Bollinger, pattern, FVG, BOS/CHoCH, swing, S/R, liquidità, volatilità, trend strength | ✅ Completato |
-| 3 | **Pattern Discovery** — scoperta non supervisionata via ML + statistica, validazione OOS | ✅ Completato |
+| 3 | **Pattern Discovery** — scoperta non supervisionata via ML + statistica, validazione OOS, **Deflated Sharpe Ratio** (correzione multiple testing) | ✅ Completato |
 | 4 | **Strategy Generator** — entry/exit/SL/TP/BE/trailing/filtri + backtester con costi (spread/slippage/commissioni) | ✅ Completato |
-| 5 | **Validation** — walk-forward, OOS, Monte Carlo, robustness, sensitivity | ✅ Completato |
+| 5 | **Validation** — walk-forward, OOS, Monte Carlo, robustness, sensitivity, PSR/Deflated Sharpe | ✅ Completato |
 | 6 | **EA Generator** — export MQL4/MQL5 con modello KMeans embeddato | ✅ Completato |
 | 7 | **AI Feedback** — analisi errori, ottimizzazione, versioning strategie | ✅ Completato |
 | 8 | GitHub — organizzazione automatica del repo | ✅ (struttura attiva) |

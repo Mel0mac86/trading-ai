@@ -46,6 +46,8 @@ class PipelineConfig:
     n_clusters: int = 25               # numero pattern candidati (Modulo 3)
     min_profit_factor: float = 1.1     # soglia OOS (Modulo 3)
     min_count_test: int = 20           # trade OOS minimi (Modulo 3)
+    use_dsr: bool = True               # correzione multiple testing (Deflated Sharpe)
+    min_dsr: float = 0.90              # DSR minimo per accettare un pattern
     exportable_only: bool = True       # usa solo feature esportabili in MQL (per il Modulo 6)
     risk: RiskParams = field(default_factory=RiskParams)
     filters: Filters = field(default_factory=Filters)
@@ -99,7 +101,7 @@ def run_pipeline(df: pd.DataFrame, config: PipelineConfig | None = None) -> Pipe
     disc = PatternDiscovery(
         n_clusters=cfg.n_clusters, horizon=cfg.horizon,
         min_profit_factor=cfg.min_profit_factor, min_count_test=cfg.min_count_test,
-        feature_columns=feature_cols,
+        feature_columns=feature_cols, use_dsr=cfg.use_dsr, min_dsr=cfg.min_dsr,
     )
     patterns = disc.discover(feats)
 
