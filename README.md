@@ -80,7 +80,14 @@ python -m trading_ai                       # run completa con i default
 python -m trading_ai --instruments EURUSD XAUUSD US500
 python -m trading_ai --config config/default.yaml
 python -m trading_ai --no-download         # solo dati locali/sintetici
+# Dati direttamente da un dataset Kaggle (richiede KAGGLE_API_TOKEN):
+python -m trading_ai --instruments XAUUSD --kaggle-dataset owner/dataset
 ```
+
+**Acquisizione dati** (in cascata, sempre con fallback): file locali in
+`datasets/` → **dataset Kaggle** (se `--kaggle-dataset` + credenziali) → download
+yfinance → dati sintetici. Più file annuali dello stesso strumento vengono
+fusi automaticamente in una serie continua.
 
 Output di ogni run (timestamped):
 

@@ -48,6 +48,7 @@ class AutopilotConfig:
     instruments: list[str] = field(default_factory=lambda: list(_DEFAULT_INSTRUMENTS))
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
     allow_download: bool = True        # prova a scaricare dati reali se possibile
+    kaggle_dataset: str | None = None  # slug 'owner/dataset' Kaggle da cui prendere i dati
     synthetic_bars: int = 200_000      # barre del fallback sintetico
     persist_models: bool = True        # salva clusterer e strategie robuste
     output_root: Path | None = None    # radice degli output (default: /reports/runs)
@@ -96,6 +97,7 @@ def run_autopilot(config: AutopilotConfig | None = None) -> dict:
         try:
             # 1) Acquisizione dati (con fallback garantito).
             raw, source = acquire(symbol, allow_download=cfg.allow_download,
+                                  kaggle_dataset=cfg.kaggle_dataset,
                                   synthetic_bars=cfg.synthetic_bars)
             entry["source"] = source
 

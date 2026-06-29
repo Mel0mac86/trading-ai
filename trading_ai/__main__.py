@@ -44,6 +44,8 @@ def _build_config(args: argparse.Namespace) -> AutopilotConfig:
         cfg.instruments = args.instruments
     if args.no_download:
         cfg.allow_download = False
+    if args.kaggle_dataset:
+        cfg.kaggle_dataset = args.kaggle_dataset
     if args.bars:
         cfg.synthetic_bars = args.bars
     if args.output:
@@ -63,6 +65,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="Lista di strumenti (es. EURUSD XAUUSD US500).")
     parser.add_argument("--no-download", action="store_true",
                         help="Non scaricare dati online: usa solo CSV locali o sintetici.")
+    parser.add_argument("--kaggle-dataset",
+                        help="Slug Kaggle 'owner/dataset' da cui scaricare i dati "
+                             "(richiede KAGGLE_API_TOKEN o ~/.kaggle).")
     parser.add_argument("--bars", type=int,
                         help="Numero di barre del fallback sintetico.")
     parser.add_argument("--output", help="Cartella radice degli output della run.")

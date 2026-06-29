@@ -56,6 +56,29 @@ def _load_and_merge(files: list[Path]) -> pd.DataFrame:
     return df
 
 
+def _try_kaggle_dataset(slug: str, dest: Path) -> bool:
+    """
+    Scarica (una volta) un dataset Kaggle nella cartella `dest`, se la libreria
+    kaggle e' installata e le credenziali sono disponibili (KAGGLE_API_TOKEN o
+    ~/.kaggle). Ritorna True se i file sono pronti, False in caso di problemi
+    (la cascata ripieghera' su altre fonti). Non scarica due volte: se `dest`
+    contiene gia' dei CSV, li riusa.
+    """
+    if any(dest.glob("*.csv")) if dest.exists() else False:
+        return True                                    # gia' scaricato in precedenza (cache)
+    try:
+        import kaggle  # dipendenza OPZIONALE; l'import autentica leggendo le credenziali
+    except Exception:
+        return False
+    try:
+        dest.mkdir(parents=True, exist_ok=True)
+        kaggle.api.dataset_download_files(slug, path=str(dest), unzip=True, quiet=True)
+        return any(dest.glob("*.csv"))
+    except Exception as e:                              # creds assenti, slug errato, rete...
+        logger.warning("Download Kaggle '%s' fallito (%s).", slug, e)
+        return False
+
+
 def _try_download(symbol: str, period: str, interval: str) -> pd.DataFrame | None:
     """
     Tenta un download via yfinance, se disponibile. Ritorna None in caso di
@@ -85,6 +108,7 @@ def acquire(
     *,
     datasets_dir: Path | None = None,
     allow_download: bool = True,
+    kaggle_dataset: str | None = None,   # slug 'owner/dataset' da cui scaricare i dati
     download_period: str = "2y",
     download_interval: str = "1h",
     synthetic_bars: int = 200_000,
@@ -93,21 +117,29 @@ def acquire(
     """
     Acquisisce i dati per `symbol` in modo autonomo, con fallback garantito.
 
-    Ritorna
-    -------
-    (df, source) : il DataFrame grezzo e una stringa di provenienza
-                   ('csv:<file>', 'yfinance', 'synthetic').
+    Ordine: file locali -> dataset Kaggle (se configurato) -> download yfinance
+    -> sintetico. Ritorna (df, source) dove source indica la provenienza.
     """
     datasets_dir = datasets_dir or PATHS.datasets
 
     # 1) File locali (uno o piu' anni dello stesso strumento, fusi insieme).
     files = _find_local_files(symbol, datasets_dir)
+    src_tag = "csv"
+
+    # 1b) Se non ci sono file locali ma e' configurato un dataset Kaggle, lo
+    # scarichiamo (in cache sotto datasets/_kaggle/<slug>) e cerchiamo lì.
+    if not files and kaggle_dataset:
+        cache = datasets_dir / "_kaggle" / kaggle_dataset.replace("/", "_")
+        if _try_kaggle_dataset(kaggle_dataset, cache):
+            files = _find_local_files(symbol, cache)
+            src_tag = "kaggle"
+
     if files:
         names = ", ".join(p.name for p in files)
-        logger.info("Dati per %s da %d file locale/i: %s", symbol, len(files), names)
+        logger.info("Dati per %s da %d file (%s): %s", symbol, len(files), src_tag, names)
         df = _load_and_merge(files) if len(files) > 1 else load_csv(files[0])
-        src = f"csv:{files[0].name}" if len(files) == 1 else f"csv:{len(files)} file"
-        return df, src
+        suffix = files[0].name if len(files) == 1 else f"{len(files)} file"
+        return df, f"{src_tag}:{suffix}"
 
     # 2) Download opzionale.
     if allow_download:

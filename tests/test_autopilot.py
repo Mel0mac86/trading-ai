@@ -177,8 +177,9 @@ def test_cli_build_config_overrides():
     from trading_ai.__main__ import _build_config
     import argparse
     ns = argparse.Namespace(config=None, instruments=["XAUUSD"], no_download=True,
-                            bars=5000, output=None)
+                            bars=5000, output=None, kaggle_dataset="melomac/histdata")
     cfg = _build_config(ns)
     assert cfg.instruments == ["XAUUSD"]
     assert cfg.allow_download is False
     assert cfg.synthetic_bars == 5000
+    assert cfg.kaggle_dataset == "melomac/histdata"
