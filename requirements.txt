@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------------
+# Dipendenze della piattaforma AI Trading.
+# Versioni "minime" (>=) per restare compatibili con l'ambiente Kaggle,
+# che aggiorna spesso i pacchetti. Usiamo SOLO librerie open source mature
+# invece di reinventare componenti gia' disponibili (regola di progetto).
+# ---------------------------------------------------------------------------
+
+# --- Core numerico / dati ---
+numpy>=1.23          # algebra vettoriale, base di tutto lo stack scientifico
+pandas>=1.5          # gestione DataFrame, time series, milioni di candele
+pyarrow>=10.0        # I/O Parquet veloce e compresso per dataset grandi
+scipy>=1.9           # statistica, test, distribuzioni (usato dal Modulo 5)
+
+# --- Machine Learning / Pattern Discovery (Moduli 3-5-7) ---
+scikit-learn>=1.2    # clustering, modelli, metriche, preprocessing
+statsmodels>=0.13    # test statistici, stazionarieta', walk-forward
+
+# --- Feature Engineering tecnico (Modulo 2) ---
+# Gli indicatori (ATR, RSI, MACD, ADX, Bollinger, VWAP...) sono implementati in
+# pandas/numpy puro con le formule di Wilder e validati dai test: nessuna
+# dipendenza esterna fragile (la libreria 'ta' non compila su molti ambienti).
+
+# --- Visualizzazione / Report (Modulo 9) ---
+matplotlib>=3.6      # grafici equity, drawdown, distribuzioni
+
+# --- Utility ---
+tqdm>=4.64           # progress bar per loop lunghi (backtest, ricerca pattern)
+joblib>=1.2          # parallelizzazione e serializzazione modelli
+PyYAML>=6.0          # lettura/scrittura file di configurazione
