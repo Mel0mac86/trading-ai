@@ -15,7 +15,7 @@ from trading_ai.ea_generator.features_map import (
     EXPORT_SPEC, MQL5_HANDLE_CREATE, required_handles,
 )
 from trading_ai.ea_generator.mql_common import (
-    array_1d, centroids_block, extract_model, model_constants,
+    array_1d, centroids_block, extract_model, model_constants, stable_magic,
 )
 
 
@@ -68,7 +68,7 @@ input int    InpMaxTradesDay= {risk.max_trades_per_day};
 input double InpMinADX      = 0.0;
 input int    InpStartHour   = -1;
 input int    InpEndHour     = -1;
-input long   InpMagic       = {abs(hash(strategy.name)) % 90000 + 10000};
+input long   InpMagic       = {stable_magic(strategy.name)};
 
 //--- Modello embeddato ---
 {array_1d('gMean', m['mean'])}

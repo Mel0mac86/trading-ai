@@ -57,6 +57,23 @@ class CostModel:
         price_cost = (self.spread + 2.0 * self.slippage) / entry_price
         return price_cost + self.commission
 
+    @classmethod
+    def from_spread_points(cls, spread_points: float, point_value: float,
+                           slippage_points: float = 0.0,
+                           commission: float = 0.0) -> "CostModel":
+        """
+        Costruisce un CostModel dallo spread REALE esportato da MetaTrader.
+
+        Lo spread MT e' espresso in PUNTI; lo convertiamo in unita' di prezzo
+        moltiplicando per il valore del punto (`point_value`), es. 0.001 per
+        l'oro a 3 decimali, 0.00001 per una coppia FX a 5 decimali.
+        """
+        return cls(
+            spread=spread_points * point_value,
+            slippage=slippage_points * point_value,
+            commission=commission,
+        )
+
     def as_dict(self) -> dict:
         return asdict(self)
 

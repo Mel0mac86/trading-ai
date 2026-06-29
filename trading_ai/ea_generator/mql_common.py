@@ -11,7 +11,21 @@ richiede file esterni.
 
 from __future__ import annotations
 
+import hashlib
+
 import numpy as np
+
+
+def stable_magic(name: str) -> int:
+    """
+    Magic number DETERMINISTICO ricavato dal nome della strategia.
+
+    NB: la built-in hash() di Python e' randomizzata per processo
+    (PYTHONHASHSEED), quindi rigenerare lo stesso EA darebbe magic diversi.
+    Usiamo invece un hash MD5 stabile, mappato nell'intervallo 10000-99999.
+    """
+    digest = hashlib.md5(name.encode("utf-8")).hexdigest()  # hash stabile e riproducibile
+    return int(digest, 16) % 90000 + 10000                   # 5 cifre, range [10000, 99999]
 
 
 def _fmt(x: float) -> str:

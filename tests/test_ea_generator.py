@@ -86,6 +86,18 @@ def test_export_writes_files(strategy, tmp_path):
     assert "OnTick" in paths["mql4"].read_text()
 
 
+def test_magic_number_is_deterministic(strategy):
+    """Lo stesso nome strategia deve produrre SEMPRE lo stesso magic number."""
+    from trading_ai.ea_generator.mql_common import stable_magic
+    # Determinismo tra chiamate (a differenza di hash() randomizzato).
+    assert stable_magic("PAT00_LONG") == stable_magic("PAT00_LONG")
+    assert 10000 <= stable_magic("qualsiasi") <= 99999
+    # Il valore nel sorgente coincide con quello calcolato dall'helper.
+    code = EAGenerator().to_mql4(strategy)
+    expected = stable_magic(strategy.name)
+    assert f"InpMagic       = {expected}" in code
+
+
 def test_export_rejects_non_exportable(strategy):
     """Se il clusterer usa feature non native, l'export deve fallire chiaramente."""
     strategy.clusterer.feature_columns = ["rsi", "fvg_fvg"]   # forziamo una non esportabile

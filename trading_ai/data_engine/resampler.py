@@ -28,6 +28,7 @@ _AGG_RULES: dict[str, str] = {
     "low": "min",
     "close": "last",
     "volume": "sum",
+    "spread": "mean",     # spread medio del periodo (in punti)
 }
 
 

@@ -1,0 +1,28 @@
+# Configurazione di default dell'autopilota.
+# Tutti i campi sono OPZIONALI: ciò che ometti resta al default del codice.
+# Usala con:  python -m trading_ai --config config/default.yaml
+
+# Strumenti da elaborare. Senza CSV in /datasets né rete, vengono generati
+# dati sintetici deterministici per ognuno (la run gira comunque).
+instruments:
+  - EURUSD
+  - XAUUSD
+  - US500
+
+allow_download: true        # prova a scaricare dati reali (yfinance) se disponibile
+synthetic_bars: 200000      # barre del fallback sintetico
+persist_models: true        # salva clusterer e strategie robuste (joblib)
+
+# Parametri della pipeline (Moduli 2-6,9). Anche questi tutti opzionali.
+pipeline:
+  timeframe: H1             # timeframe operativo
+  horizon: 10               # orizzonte (barre) per l'outcome dei pattern
+  n_clusters: 25            # numero di pattern candidati
+  min_profit_factor: 1.1    # profit factor minimo out-of-sample
+  min_count_test: 20        # trade OOS minimi per significativita'
+  use_dsr: true             # correzione multiple testing (Deflated Sharpe)
+  min_dsr: 0.90             # DSR minimo per accettare un pattern
+  exportable_only: true     # usa solo feature esportabili in MQL (EA fedeli)
+  validate: true            # esegui la validazione (Modulo 5)
+  make_reports: true        # genera i report (Modulo 9)
+  export_ea: true           # esporta gli EA MQL4/MQL5 (Modulo 6)

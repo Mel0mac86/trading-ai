@@ -27,3 +27,4 @@ matplotlib>=3.6      # grafici equity, drawdown, distribuzioni
 tqdm>=4.64           # progress bar per loop lunghi (backtest, ricerca pattern)
 joblib>=1.2          # parallelizzazione e serializzazione modelli
 PyYAML>=6.0          # lettura/scrittura file di configurazione
+kaggle>=1.6          # acquisizione dati opzionale da dataset Kaggle (autopilota)

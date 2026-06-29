@@ -72,8 +72,11 @@ class DataEngine:
 
     def _maybe_clean(self, df: pd.DataFrame, do_clean: bool) -> pd.DataFrame:
         """Applica la pulizia se richiesta, memorizzando il report."""
+        point_value = df.attrs.get("point_value")      # da preservare oltre la pulizia
         if do_clean:
             df, self.last_report = clean(df, max_return=self.max_return)
+        if point_value is not None:                    # le operazioni pandas possono perdere attrs
+            df.attrs["point_value"] = point_value
         return df
 
     # --- Trasformazioni ------------------------------------------------------

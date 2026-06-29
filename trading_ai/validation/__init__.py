@@ -23,13 +23,17 @@ import pandas as pd
 from trading_ai.strategy_generator import summarize_backtest
 from trading_ai.validation.monte_carlo import monte_carlo_trades
 from trading_ai.validation.robustness import parameter_robustness
+from trading_ai.validation.multiple_testing import (
+    deflated_sharpe_ratio, expected_max_sharpe, probabilistic_sharpe_ratio,
+)
 from trading_ai.validation.walk_forward import walk_forward
 from trading_ai.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 __all__ = ["Validator", "ValidationReport", "monte_carlo_trades",
-           "walk_forward", "parameter_robustness"]
+           "walk_forward", "parameter_robustness", "probabilistic_sharpe_ratio",
+           "expected_max_sharpe", "deflated_sharpe_ratio"]
 
 
 @dataclass

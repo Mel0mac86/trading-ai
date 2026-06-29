@@ -48,9 +48,9 @@ trading-ai/
 |---|--------|-------|
 | 1 | **Data Engine** — import, pulizia, resampling, normalizzazione | ✅ Completato |
 | 2 | **Feature Engineering** — ATR, RSI, MACD, ADX, EMA/SMA, VWAP, Bollinger, pattern, FVG, BOS/CHoCH, swing, S/R, liquidità, volatilità, trend strength | ✅ Completato |
-| 3 | **Pattern Discovery** — scoperta non supervisionata via ML + statistica, validazione OOS | ✅ Completato |
+| 3 | **Pattern Discovery** — scoperta non supervisionata via ML + statistica, validazione OOS, **Deflated Sharpe Ratio** (correzione multiple testing) | ✅ Completato |
 | 4 | **Strategy Generator** — entry/exit/SL/TP/BE/trailing/filtri + backtester con costi (spread/slippage/commissioni) | ✅ Completato |
-| 5 | **Validation** — walk-forward, OOS, Monte Carlo, robustness, sensitivity | ✅ Completato |
+| 5 | **Validation** — walk-forward, OOS, Monte Carlo, robustness, sensitivity, PSR/Deflated Sharpe | ✅ Completato |
 | 6 | **EA Generator** — export MQL4/MQL5 con modello KMeans embeddato | ✅ Completato |
 | 7 | **AI Feedback** — analisi errori, ottimizzazione, versioning strategie | ✅ Completato |
 | 8 | GitHub — organizzazione automatica del repo | ✅ (struttura attiva) |
@@ -64,7 +64,60 @@ end-to-end è orchestrata da `trading_ai/pipeline.py` e dal notebook
 
 ```bash
 pip install -r requirements.txt
+# oppure, per il comando CLI installato:
+pip install -e .
 ```
+
+## Autopilota (zero input)
+
+La piattaforma gira **da sola, senza inserire nulla**: acquisisce i dati (CSV
+locali in `datasets/` → download opzionale → fallback sintetico garantito),
+esegue l'intera pipeline su più strumenti, valida, genera report ed EA,
+**persiste i modelli** e scrive un report consolidato per ogni run.
+
+```bash
+python -m trading_ai                       # run completa con i default
+python -m trading_ai --instruments EURUSD XAUUSD US500
+python -m trading_ai --config config/default.yaml
+python -m trading_ai --no-download         # solo dati locali/sintetici
+# Dati direttamente da un dataset Kaggle (richiede KAGGLE_API_TOKEN):
+python -m trading_ai --instruments XAUUSD --kaggle-dataset owner/dataset
+```
+
+**Acquisizione dati** (in cascata, sempre con fallback): file locali in
+`datasets/` → **dataset Kaggle** (se `--kaggle-dataset` + credenziali) → download
+yfinance → dati sintetici. Più file annuali dello stesso strumento vengono
+fusi automaticamente in una serie continua.
+
+Output di ogni run (timestamped):
+
+```
+reports/runs/<run>/manifest.json   # esiti macchina-leggibili
+reports/runs/<run>/summary.md      # sintesi + strategie robuste
+reports/runs/<run>/<Strategia>/    # report di dettaglio (equity, drawdown...)
+models/<run>/<strumento>/          # clusterer e strategie serializzati (joblib)
+mql4/  mql5/                       # Expert Advisor esportati
+logs/autopilot_<run>.log           # log completo dell'esecuzione
+```
+
+### Formato dati supportato
+
+Il loader riconosce gli **export MetaTrader** out-of-the-box (oltre a CSV generici):
+
+```
+date	open	high	low	close	volume	spread
+2024.11.18 00:00	2564.258	2568.575	2563.835	2567.455	595	81
+```
+
+- datetime puntato `YYYY.MM.DD HH:MM` (anche `date`+`time` separati), con parsing a
+  **formato esplicito** → veloce su milioni di candele;
+- separatore (tab/virgola/`;`) rilevato automaticamente;
+- la colonna **`spread`** (in punti) alimenta i **costi di transazione reali**
+  (conversione punti→prezzo con `point_value` inferito dai decimali), poi viene
+  rimossa dalle feature per non inquinare il modello.
+
+Metti il file in `datasets/` con il simbolo nel nome (es. `XAUUSD_M5.csv`):
+l'autopilota lo abbina automaticamente allo strumento `XAUUSD`.
 
 ## Esempio rapido (Modulo 1)
 
