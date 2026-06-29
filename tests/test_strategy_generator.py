@@ -16,7 +16,7 @@ from trading_ai.data_engine import generate_ohlcv
 from trading_ai.feature_engineering import FeatureEngine
 from trading_ai.pattern_discovery import PatternDiscovery
 from trading_ai.strategy_generator import (
-    RiskParams, StrategyGenerator, backtest, summarize_backtest,
+    CostModel, RiskParams, StrategyGenerator, backtest, summarize_backtest,
 )
 
 
@@ -115,6 +115,46 @@ def test_summarize_empty():
     res = backtest(df, entries, direction=1, atr=atr, risk=RiskParams())
     summ = summarize_backtest(res)
     assert summ["n_trades"] == 0
+
+
+def test_cost_model_return():
+    """Il costo per trade combina spread, slippage e commissioni correttamente."""
+    cm = CostModel(spread=0.0002, slippage=0.0001, commission=0.00005)
+    # cost = (0.0002 + 2*0.0001)/100 + 0.00005 = 0.0004/100 + 0.00005
+    assert cm.cost_return(100.0) == pytest.approx(0.0004 / 100.0 + 0.00005)
+
+
+def test_costs_reduce_returns():
+    """Con costi, lo stesso trade vincente rende meno (drag) rispetto a senza."""
+    df = _make_df([
+        (100, 100, 100),
+        (103, 100, 102),   # TP a 102
+        (102, 99, 101),
+    ])
+    atr = pd.Series(1.0, index=df.index)
+    entries = pd.Series([True, False, False], index=df.index)
+    risk = RiskParams(sl_atr=2, tp_atr=2, be_atr=0, trail_atr=0, max_bars=5)
+    free = backtest(df, entries, 1, atr, risk)
+    costed = backtest(df, entries, 1, atr, risk,
+                      costs=CostModel(spread=0.5, slippage=0.1, commission=0.001))
+    assert costed.trades.iloc[0]["return"] < free.trades.iloc[0]["return"]
+    # Il rendimento lordo resta invariato; cambia solo il netto.
+    assert costed.trades.iloc[0]["gross_return"] == pytest.approx(free.trades.iloc[0]["return"])
+
+
+def test_costs_can_flip_marginal_trade_to_loss():
+    """Costi alti possono trasformare un piccolo guadagno lordo in perdita netta."""
+    df = _make_df([
+        (100, 100, 100),
+        (100.6, 100, 100.5),   # piccolo TP a +0.5
+        (100.5, 100, 100.4),
+    ])
+    atr = pd.Series(0.25, index=df.index)
+    entries = pd.Series([True, False, False], index=df.index)
+    risk = RiskParams(sl_atr=2, tp_atr=2, be_atr=0, trail_atr=0, max_bars=5)
+    costed = backtest(df, entries, 1, atr, risk,
+                      costs=CostModel(spread=0.8))   # spread maggiore del guadagno
+    assert costed.trades.iloc[0]["return"] < 0
 
 
 def test_end_to_end_pipeline():

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from trading_ai.strategy_generator.risk import RiskParams
+from trading_ai.strategy_generator.risk import CostModel, RiskParams
 
 
 @dataclass
@@ -39,6 +39,7 @@ def backtest(
     atr: pd.Series,
     risk: RiskParams,
     initial_equity: float = 10_000.0,
+    costs: CostModel | None = None,
 ) -> BacktestResult:
     """
     Esegue il backtest di una strategia direzionale.
@@ -66,6 +67,7 @@ def backtest(
     sig = entries.to_numpy(dtype=bool)
     times = df.index
     n = len(df)
+    costs = costs or CostModel()       # zero costi se non specificato (retro-compatibile)
 
     equity = initial_equity            # capitale corrente (compounded)
     equity_curve = np.full(n, np.nan)  # equity registrata nel tempo
@@ -146,9 +148,11 @@ def backtest(
             exit_price = close[last]
 
         # --- Calcolo PnL ----------------------------------------------------
-        # Rendimento del trade orientato per direzione.
-        trade_ret = direction * (exit_price - entry_price) / entry_price
-        # R-multiple: profitto in unita' di rischio iniziale (return / rischio%).
+        # Rendimento lordo del trade orientato per direzione.
+        gross_ret = direction * (exit_price - entry_price) / entry_price
+        # Sottraiamo i costi di transazione (spread + slippage + commissioni).
+        trade_ret = gross_ret - costs.cost_return(entry_price)
+        # R-multiple: profitto NETTO in unita' di rischio iniziale (return / rischio%).
         risk_pct = sl_dist / entry_price
         r_multiple = trade_ret / risk_pct if risk_pct > 0 else 0.0
         # Equity a rischio fisso frazionario: guadagno = equity * risk% * R.
@@ -157,8 +161,8 @@ def backtest(
         records.append({
             "entry_time": times[i], "exit_time": times[exit_idx],
             "direction": direction, "entry": entry_price, "exit": exit_price,
-            "bars": exit_idx - i, "return": trade_ret, "r_multiple": r_multiple,
-            "equity": equity,
+            "bars": exit_idx - i, "gross_return": gross_ret, "return": trade_ret,
+            "r_multiple": r_multiple, "equity": equity,
         })
 
         # Segniamo l'equity su tutte le barre attraversate dal trade.

@@ -32,6 +32,36 @@ class RiskParams:
 
 
 @dataclass
+class CostModel:
+    """
+    Costi di transazione applicati a ogni trade (spread, slippage, commissioni).
+
+    Modelliamo i costi come un "drag" sul rendimento del trade: e' un'ottima
+    approssimazione, conservativa e semplice. Tutte le grandezze di prezzo sono
+    nell'unita' dello strumento (es. 0.0001 = 1 pip su EURUSD a 5 cifre).
+
+    cost_return = (spread + 2*slippage) / prezzo_ingresso + commission
+      - spread     : differenza denaro/lettera, pagata una volta a giro (round-trip)
+      - slippage   : scostamento medio per lato (entrata e uscita -> *2)
+      - commission : commissione round-trip come FRAZIONE del nozionale (es. 0.00007)
+    """
+
+    spread: float = 0.0          # spread in unita' di prezzo (round-trip)
+    slippage: float = 0.0        # slippage in unita' di prezzo, per lato
+    commission: float = 0.0      # commissione round-trip come frazione del nozionale
+
+    def cost_return(self, entry_price: float) -> float:
+        """Costo totale del trade espresso come riduzione di rendimento."""
+        if entry_price <= 0:
+            return self.commission
+        price_cost = (self.spread + 2.0 * self.slippage) / entry_price
+        return price_cost + self.commission
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class Filters:
     """Filtri di contesto che possono BLOCCARE un ingresso valido del pattern."""
 

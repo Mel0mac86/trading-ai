@@ -27,12 +27,12 @@ import pandas as pd
 from trading_ai.pattern_discovery import PatternDiscovery
 from trading_ai.pattern_discovery.metrics import compute_stats, equity_max_drawdown
 from trading_ai.strategy_generator.backtest import BacktestResult, backtest
-from trading_ai.strategy_generator.risk import Filters, RiskParams
+from trading_ai.strategy_generator.risk import CostModel, Filters, RiskParams
 from trading_ai.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ["Strategy", "StrategyGenerator", "RiskParams", "Filters",
+__all__ = ["Strategy", "StrategyGenerator", "RiskParams", "Filters", "CostModel",
            "backtest", "BacktestResult"]
 
 
@@ -46,6 +46,7 @@ class Strategy:
     clusterer: object                      # FeatureClusterer gia' addestrato (per i segnali)
     risk: RiskParams = field(default_factory=RiskParams)
     filters: Filters = field(default_factory=Filters)
+    costs: CostModel = field(default_factory=CostModel)  # costi di transazione (spread/slippage/commissioni)
 
     # --- Generazione segnali -------------------------------------------------
     def generate_signals(self, features: pd.DataFrame) -> pd.Series:
@@ -89,7 +90,7 @@ class Strategy:
             raise ValueError("Le feature devono includere 'atr' (Modulo 2) per il backtest.")
         signals = self.generate_signals(features)
         return backtest(features, signals, self.direction,
-                        features["atr"], self.risk, initial_equity)
+                        features["atr"], self.risk, initial_equity, self.costs)
 
     def describe(self) -> dict:
         """Riassunto serializzabile della strategia (per i report)."""
@@ -97,6 +98,7 @@ class Strategy:
             "name": self.name, "cluster_id": self.cluster_id,
             "direction": self.direction,
             "risk": self.risk.as_dict(), "filters": self.filters.as_dict(),
+            "costs": self.costs.as_dict(),
         }
 
 
@@ -131,12 +133,14 @@ class StrategyGenerator:
     """Costruisce strategie dai pattern stabili e le backtesta."""
 
     def __init__(self, discovery: PatternDiscovery,
-                 risk: RiskParams | None = None, filters: Filters | None = None):
+                 risk: RiskParams | None = None, filters: Filters | None = None,
+                 costs: CostModel | None = None):
         if discovery.clusterer is None:
             raise ValueError("Esegui prima discovery.discover() sul Modulo 3.")
         self.discovery = discovery
         self.risk = risk or RiskParams()
         self.filters = filters or Filters()
+        self.costs = costs or CostModel()
         self.strategies: list[Strategy] = []
 
     def build(self) -> list[Strategy]:
@@ -147,7 +151,7 @@ class StrategyGenerator:
                 name=f"PAT{p.cluster_id:02d}_{'LONG' if p.direction == 1 else 'SHORT'}",
                 cluster_id=p.cluster_id, direction=p.direction,
                 clusterer=self.discovery.clusterer,
-                risk=self.risk, filters=self.filters,
+                risk=self.risk, filters=self.filters, costs=self.costs,
             )
             self.strategies.append(strat)
         logger.info("Strategie costruite: %d", len(self.strategies))

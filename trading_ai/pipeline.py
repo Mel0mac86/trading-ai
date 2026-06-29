@@ -28,7 +28,7 @@ from trading_ai.ea_generator import EAGenerator, EXPORTABLE_FEATURES
 from trading_ai.feature_engineering import FeatureEngine
 from trading_ai.pattern_discovery import PatternDiscovery
 from trading_ai.reporting import ReportGenerator
-from trading_ai.strategy_generator import Filters, RiskParams, StrategyGenerator
+from trading_ai.strategy_generator import CostModel, Filters, RiskParams, StrategyGenerator
 from trading_ai.validation import Validator
 from trading_ai.utils.logging import get_logger
 
@@ -49,6 +49,7 @@ class PipelineConfig:
     exportable_only: bool = True       # usa solo feature esportabili in MQL (per il Modulo 6)
     risk: RiskParams = field(default_factory=RiskParams)
     filters: Filters = field(default_factory=Filters)
+    costs: CostModel = field(default_factory=CostModel)  # costi di transazione (Modulo 4)
     validate: bool = True              # esegui il Modulo 5
     make_reports: bool = True          # esegui il Modulo 9
     export_ea: bool = True             # esegui il Modulo 6
@@ -103,7 +104,7 @@ def run_pipeline(df: pd.DataFrame, config: PipelineConfig | None = None) -> Pipe
     patterns = disc.discover(feats)
 
     # --- Modulo 4: strategie dai pattern stabili ----------------------------
-    gen = StrategyGenerator(disc, risk=cfg.risk, filters=cfg.filters)
+    gen = StrategyGenerator(disc, risk=cfg.risk, filters=cfg.filters, costs=cfg.costs)
     strategies = gen.build()
 
     # --- Modulo 5: validazione robustezza -----------------------------------
