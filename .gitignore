@@ -1,0 +1,26 @@
+# Byte-compiled / cache Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Ambienti virtuali
+.venv/
+venv/
+env/
+
+# Dati grandi e artefatti generati: NON versioniamo i file pesanti,
+# solo il codice che li produce. (I .gitkeep mantengono le cartelle.)
+datasets/*
+!datasets/.gitkeep
+!datasets/**/.gitkeep
+models/*
+!models/.gitkeep
+logs/*
+!logs/.gitkeep
+reports/*
+!reports/.gitkeep
+
+# File di sistema
+.DS_Store

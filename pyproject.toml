@@ -1,0 +1,31 @@
+# Configurazione del package e dei tool. Permette `pip install -e .` per uno
+# sviluppo comodo e centralizza la configurazione di pytest.
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trading-ai"
+version = "0.1.0"
+description = "Piattaforma AI per ricerca automatica di pattern e strategie di trading robuste"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+# Le dipendenze runtime sono elencate in requirements.txt (sorgente unica).
+# Qui dichiariamo solo quelle minime indispensabili al package core.
+dependencies = [
+    "numpy>=1.23",
+    "pandas>=1.5",
+    "pyarrow>=10.0",
+]
+
+[tool.setuptools.packages.find]
+# Includiamo solo il package applicativo, non test/notebook.
+include = ["trading_ai*"]
+
+[tool.pytest.ini_options]
+# Cartella dei test e opzioni di default: output sintetico, stop utile in CI.
+testpaths = ["tests"]
+addopts = "-q"
