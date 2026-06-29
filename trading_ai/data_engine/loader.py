@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from trading_ai.config import OHLCV_COLUMNS
@@ -31,7 +32,33 @@ _COLUMN_ALIASES: dict[str, str] = {
     "c": "close", "close": "close", "<close>": "close",
     "v": "volume", "vol": "volume", "volume": "volume",
     "tickvol": "volume", "<tickvol>": "volume", "<vol>": "volume",
+    # Spread reale (in PUNTI) esportato da MetaTrader: lo conserviamo per i costi.
+    "spread": "spread", "<spread>": "spread",
 }
+
+# Formati datetime piu' comuni negli export (MetaTrader usa il punto come
+# separatore di data). Specificarli esplicitamente e' ANCHE una questione di
+# performance: senza format, pandas ricade sul parser per-elemento (dateutil),
+# lentissimo su milioni di candele.
+_DATETIME_FORMATS = [
+    "%Y.%m.%d %H:%M", "%Y.%m.%d %H:%M:%S", "%Y.%m.%d",
+    "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d",
+    "%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M",
+]
+
+
+def _parse_datetime(s: pd.Series) -> pd.Series:
+    """
+    Converte una serie di stringhe in datetime provando prima i formati noti
+    (veloce e robusto), con fallback al parser generico solo se necessario.
+    """
+    s = s.astype(str).str.strip()
+    for fmt in _DATETIME_FORMATS:
+        parsed = pd.to_datetime(s, format=fmt, errors="coerce")
+        if parsed.notna().mean() > 0.99:       # formato indovinato (quasi tutto valido)
+            return parsed
+    # Ultima spiaggia: parser generico (lento ma flessibile).
+    return pd.to_datetime(s, errors="coerce")
 
 # Possibili nomi per le colonne data/ora.
 _DATE_ALIASES = {"date", "<date>", "time", "<time>", "datetime", "timestamp"}
@@ -60,11 +87,9 @@ def _build_datetime_index(df: pd.DataFrame) -> pd.DataFrame:
     if "date" in cols_lower and "time" in cols_lower:
         date_col = cols_lower["date"]
         time_col = cols_lower["time"]
-        # Concateniamo "YYYY.MM.DD" + " " + "HH:MM" e lasciamo che pandas inferisca.
-        dt = pd.to_datetime(
-            df[date_col].astype(str) + " " + df[time_col].astype(str),
-            errors="coerce",  # valori non parsabili diventano NaT (li gestira' il cleaner)
-        )
+        # Concateniamo "YYYY.MM.DD" + " " + "HH:MM" e usiamo i formati noti.
+        combined = df[date_col].astype(str).str.strip() + " " + df[time_col].astype(str).str.strip()
+        dt = _parse_datetime(combined)
         df = df.drop(columns=[date_col, time_col])  # rimuoviamo le colonne ormai fuse
 
     else:
@@ -75,12 +100,33 @@ def _build_datetime_index(df: pd.DataFrame) -> pd.DataFrame:
                 "Nessuna colonna data/ora riconosciuta. "
                 "Attese una tra: date, time, datetime, timestamp."
             )
-        dt = pd.to_datetime(df[dt_col], errors="coerce")  # parsing robusto
+        dt = _parse_datetime(df[dt_col])                  # parsing robusto e veloce
         df = df.drop(columns=[dt_col])                    # rimuoviamo la colonna originale
 
     df.index = pd.DatetimeIndex(dt)  # impostiamo l'indice temporale
     df.index.name = "time"           # nome coerente
     return df
+
+
+def _infer_point_value(close: pd.Series) -> float:
+    """
+    Inferisce il "valore del punto" (granularita' di prezzo) dal numero di
+    decimali del prezzo: 0.001 per 3 decimali (oro), 0.00001 per 5 (FX), ecc.
+
+    Calcolato su float64 PRIMA del downcast (a float32 introdurrebbe rumore).
+    Cerca il minor numero di decimali che rappresenta fedelmente i prezzi.
+    """
+    arr = close.dropna().astype(float).to_numpy()
+    if arr.size == 0:
+        return 1e-5                                    # default prudente (FX 5 decimali)
+    sample = arr[: min(20000, arr.size)]               # un campione basta
+    scale = np.maximum(1.0, np.abs(sample))            # tolleranza relativa alla magnitudine
+    # Tolleranza 1e-6 relativa: assorbe il rumore del float32 (~1e-7 relativo)
+    # senza confondere decimali realmente distinti.
+    for d in range(0, 9):                              # da 0 a 8 decimali
+        if np.all(np.abs(sample - np.round(sample, d)) <= 1e-6 * scale):
+            return float(10.0 ** (-d))
+    return 1e-5
 
 
 def _downcast(df: pd.DataFrame) -> pd.DataFrame:
@@ -109,14 +155,22 @@ def load_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(df.index, pd.DatetimeIndex):
         df = _build_datetime_index(df)
 
-    # Teniamo solo le colonne OHLCV presenti (volume puo' mancare).
+    # Teniamo le colonne OHLCV presenti (volume puo' mancare) piu' lo 'spread'
+    # reale se esportato: ci serve per modellare i costi di transazione veri.
     keep = [c for c in OHLCV_COLUMNS if c in df.columns]
     if "close" not in keep:              # senza close non possiamo fare nulla
         raise ValueError("Colonna 'close' mancante: dati non utilizzabili.")
+    if "spread" in df.columns:
+        keep = keep + ["spread"]
     df = df[keep]                        # selezione finale delle colonne
 
     df = df.sort_index()                 # garantiamo ordine cronologico crescente
+    # Inferiamo il valore del punto su float64 (prima del downcast). Se il df
+    # era gia' stato caricato (attrs presente), riusiamo quel valore: evita di
+    # re-inferire su float32 (rumoroso) in caso di doppia normalizzazione.
+    point_value = df.attrs.get("point_value") or _infer_point_value(df["close"])
     df = _downcast(df)                   # ottimizzazione memoria
+    df.attrs["point_value"] = point_value  # propaghiamo il valore del punto (per i costi reali)
     return df
 
 

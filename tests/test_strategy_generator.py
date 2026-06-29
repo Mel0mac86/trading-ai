@@ -124,6 +124,13 @@ def test_cost_model_return():
     assert cm.cost_return(100.0) == pytest.approx(0.0004 / 100.0 + 0.00005)
 
 
+def test_cost_model_from_spread_points():
+    """Spread in punti convertito in prezzo via point_value (es. oro 3 decimali)."""
+    cm = CostModel.from_spread_points(80.0, point_value=0.001, commission=0.00005)
+    assert cm.spread == pytest.approx(0.08)        # 80 punti * 0.001 = 0.08
+    assert cm.commission == pytest.approx(0.00005)
+
+
 def test_costs_reduce_returns():
     """Con costi, lo stesso trade vincente rende meno (drag) rispetto a senza."""
     df = _make_df([

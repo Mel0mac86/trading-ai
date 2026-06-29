@@ -53,6 +53,41 @@ def test_loader_normalizes_metatrader_csv(tmp_path):
     assert len(df) == 2
 
 
+def test_loader_real_metatrader_export(tmp_path):
+    """
+    Formato export MetaTrader reale: tab-separated, datetime puntato
+    'YYYY.MM.DD HH:MM', colonna spread. Spread conservato e point_value inferito.
+    """
+    csv = tmp_path / "XAUUSD_M5.csv"
+    csv.write_text(
+        "date\topen\thigh\tlow\tclose\tvolume\tspread\n"
+        "2024.11.18 00:00\t2564.258\t2568.575\t2563.835\t2567.455\t595\t81\n"
+        "2024.11.18 00:05\t2567.455\t2569.100\t2566.200\t2568.300\t610\t79\n"
+    )
+    df = load_csv(csv)
+    assert list(df.columns) == ["open", "high", "low", "close", "volume", "spread"]
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index[0] == pd.Timestamp("2024-11-18 00:00")
+    # 3 decimali -> point_value 0.001 (oro).
+    assert df.attrs["point_value"] == pytest.approx(0.001)
+
+
+def test_resample_averages_spread(tmp_path):
+    """Lo spread (in punti) deve essere mediato nel resampling, non sommato."""
+    csv = tmp_path / "XAU.csv"
+    lines = ["date\topen\thigh\tlow\tclose\tvolume\tspread"]
+    t = pd.Timestamp("2024-01-01 00:00")
+    for i in range(20):
+        lines.append(f"{t.strftime('%Y.%m.%d %H:%M')}\t100.0\t100.5\t99.5\t100.1\t10\t{80 + (i % 4)}")
+        t += pd.Timedelta(minutes=1)
+    csv.write_text("\n".join(lines))
+    df = load_csv(csv)
+    m5 = resample(df, "M5")
+    assert "spread" in m5.columns
+    # La media di 5 valori attorno a ~80-83 resta in quel range (non somma a ~400).
+    assert 79 <= m5["spread"].iloc[0] <= 84
+
+
 def test_cleaner_removes_corrupted_rows(synth):
     """Iniettiamo righe corrotte e verifichiamo che vengano rimosse."""
     df = synth.copy()

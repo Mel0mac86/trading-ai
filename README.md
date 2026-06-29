@@ -93,6 +93,25 @@ mql4/  mql5/                       # Expert Advisor esportati
 logs/autopilot_<run>.log           # log completo dell'esecuzione
 ```
 
+### Formato dati supportato
+
+Il loader riconosce gli **export MetaTrader** out-of-the-box (oltre a CSV generici):
+
+```
+date	open	high	low	close	volume	spread
+2024.11.18 00:00	2564.258	2568.575	2563.835	2567.455	595	81
+```
+
+- datetime puntato `YYYY.MM.DD HH:MM` (anche `date`+`time` separati), con parsing a
+  **formato esplicito** → veloce su milioni di candele;
+- separatore (tab/virgola/`;`) rilevato automaticamente;
+- la colonna **`spread`** (in punti) alimenta i **costi di transazione reali**
+  (conversione punti→prezzo con `point_value` inferito dai decimali), poi viene
+  rimossa dalle feature per non inquinare il modello.
+
+Metti il file in `datasets/` con il simbolo nel nome (es. `XAUUSD_M5.csv`):
+l'autopilota lo abbina automaticamente allo strumento `XAUUSD`.
+
 ## Esempio rapido (Modulo 1)
 
 ```python

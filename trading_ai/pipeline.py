@@ -38,6 +38,11 @@ logger = get_logger(__name__)
 __all__ = ["PipelineConfig", "PipelineResult", "run_pipeline"]
 
 
+def _is_zero_cost(costs: CostModel) -> bool:
+    """True se il CostModel e' a costo nullo (nessun costo impostato dall'utente)."""
+    return costs.spread == 0 and costs.slippage == 0 and costs.commission == 0
+
+
 @dataclass
 class PipelineConfig:
     """Tutti i parametri della pipeline in un solo posto."""
@@ -53,6 +58,7 @@ class PipelineConfig:
     risk: RiskParams = field(default_factory=RiskParams)
     filters: Filters = field(default_factory=Filters)
     costs: CostModel = field(default_factory=CostModel)  # costi di transazione (Modulo 4)
+    point_value: "float | None" = None  # valore del punto per i costi da spread (None = inferito dai dati)
     validate: bool = True              # esegui il Modulo 5
     make_reports: bool = True          # esegui il Modulo 9
     export_ea: bool = True             # esegui il Modulo 6
@@ -93,6 +99,20 @@ def run_pipeline(df: pd.DataFrame, config: PipelineConfig | None = None) -> Pipe
     clean = eng.load_dataframe(df)                     # normalizza + pulisce
     bars = eng.to_timeframe(clean, cfg.timeframe)      # resample al timeframe operativo
 
+    # --- Costi reali dallo spread MetaTrader (se presente) ------------------
+    # Lo spread esportato (in punti) viene convertito in costi reali e poi
+    # RIMOSSO, cosi' non finisce per errore tra le feature del clustering.
+    costs = cfg.costs
+    if "spread" in bars.columns:
+        point_value = cfg.point_value or clean.attrs.get("point_value", 1e-5)
+        median_pts = float(bars["spread"].median())
+        bars = bars.drop(columns=["spread"])
+        if _is_zero_cost(cfg.costs):                   # solo se l'utente non ha gia' fissato i costi
+            costs = CostModel.from_spread_points(median_pts, point_value)
+            logger.info("Costi dedotti dallo spread reale: spread=%.6f prezzo "
+                        "(mediana %.1f punti, point_value=%.5g)",
+                        costs.spread, median_pts, point_value)
+
     # --- Modulo 2: feature ---------------------------------------------------
     # Se vogliamo esportare EA fedeli, limitiamo ai gruppi calcolabili in MQL.
     if cfg.exportable_only:
@@ -111,7 +131,7 @@ def run_pipeline(df: pd.DataFrame, config: PipelineConfig | None = None) -> Pipe
     patterns = disc.discover(feats)
 
     # --- Modulo 4: strategie dai pattern stabili ----------------------------
-    gen = StrategyGenerator(disc, risk=cfg.risk, filters=cfg.filters, costs=cfg.costs)
+    gen = StrategyGenerator(disc, risk=cfg.risk, filters=cfg.filters, costs=costs)
     strategies = gen.build()
     # Prefisso strumento sui nomi (evita collisioni di file tra strumenti diversi).
     if cfg.instrument:
