@@ -122,24 +122,28 @@ def acquire(
     """
     datasets_dir = datasets_dir or PATHS.datasets
 
-    # 1) File locali (uno o piu' anni dello stesso strumento, fusi insieme).
+    # 1) File locali (uno o piu' anni dello stesso strumento).
     files = _find_local_files(symbol, datasets_dir)
-    src_tag = "csv"
+    src_parts = ["locale"] if files else []
 
-    # 1b) Se non ci sono file locali ma e' configurato un dataset Kaggle, lo
-    # scarichiamo (in cache sotto datasets/_kaggle/<slug>) e cerchiamo lì.
-    if not files and kaggle_dataset:
+    # 1b) Se e' configurato un dataset Kaggle, lo scarichiamo (cache sotto
+    # datasets/_kaggle/<slug>) e UNIAMO i suoi file a quelli locali: cosi' la
+    # storia e' completa anche se un anno e' solo nel repo e gli altri su Kaggle.
+    if kaggle_dataset:
         cache = datasets_dir / "_kaggle" / kaggle_dataset.replace("/", "_")
         if _try_kaggle_dataset(kaggle_dataset, cache):
-            files = _find_local_files(symbol, cache)
-            src_tag = "kaggle"
+            kfiles = _find_local_files(symbol, cache)
+            if kfiles:
+                files = files + kfiles
+                src_parts.append("kaggle")
 
     if files:
         names = ", ".join(p.name for p in files)
-        logger.info("Dati per %s da %d file (%s): %s", symbol, len(files), src_tag, names)
+        src = "+".join(src_parts) or "csv"
+        logger.info("Dati per %s da %d file (%s): %s", symbol, len(files), src, names)
         df = _load_and_merge(files) if len(files) > 1 else load_csv(files[0])
         suffix = files[0].name if len(files) == 1 else f"{len(files)} file"
-        return df, f"{src_tag}:{suffix}"
+        return df, f"{src}:{suffix}"
 
     # 2) Download opzionale.
     if allow_download:

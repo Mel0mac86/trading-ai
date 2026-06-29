@@ -44,7 +44,7 @@ def test_acquire_prefers_local_csv(tmp_path):
         "2020-01-01 01:00,1.105,1.112,1.10,1.108,120\n"
     )
     df, source = acquire("EURUSD", datasets_dir=tmp_path, allow_download=False)
-    assert source.startswith("csv:")
+    assert "locale" in source and "EURUSD_H1.csv" in source
     assert len(df) == 2
 
 
