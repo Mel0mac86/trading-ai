@@ -21,6 +21,11 @@ logs/*
 !logs/.gitkeep
 reports/*
 !reports/.gitkeep
+# EA generati dal Modulo 6: artefatti, non codice sorgente del progetto.
+mql4/*
+!mql4/.gitkeep
+mql5/*
+!mql5/.gitkeep
 
 # File di sistema
 .DS_Store
