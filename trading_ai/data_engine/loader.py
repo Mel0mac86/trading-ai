@@ -44,6 +44,7 @@ _DATETIME_FORMATS = [
     "%Y.%m.%d %H:%M", "%Y.%m.%d %H:%M:%S", "%Y.%m.%d",
     "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d",
     "%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M",
+    "%Y%m%d %H%M%S", "%Y%m%d %H%M",   # formato ASCII HistData: 'YYYYMMDD HHMMSS'
 ]
 
 
@@ -63,6 +64,30 @@ def _parse_datetime(s: pd.Series) -> pd.Series:
 # Possibili nomi per le colonne data/ora.
 _DATE_ALIASES = {"date", "<date>", "time", "<time>", "datetime", "timestamp"}
 _TIME_ALIASES = {"time", "<time>"}
+
+
+# Token tipici di una riga d'intestazione: se compaiono nella prima riga,
+# il file HA l'header; altrimenti e' un export "grezzo" (HistData/MT senza header).
+_HEADER_TOKENS = {
+    "date", "time", "datetime", "timestamp", "open", "high", "low", "close",
+    "volume", "vol", "tickvol", "spread", "o", "h", "l", "c", "v",
+}
+
+
+def _detect_header(path: Path) -> bool:
+    """
+    Determina se la prima riga del CSV e' un'intestazione, esaminandone i token.
+    Robusto sia agli export con header sia a quelli senza (HistData, MT grezzo).
+    """
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        first = f.readline().strip()
+    if not first:
+        return False
+    # Rileviamo il separatore piu' frequente tra quelli comuni.
+    counts = {d: first.count(d) for d in [",", ";", "\t", "|"]}
+    sep = max(counts, key=counts.get) if max(counts.values()) > 0 else ","
+    tokens = [t.strip().strip('"<>').lower() for t in first.split(sep)]
+    return any(t in _HEADER_TOKENS for t in tokens)
 
 
 def _standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -174,40 +199,51 @@ def load_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# Nomi di colonna per gli export SENZA intestazione, in base al numero di campi.
+# 7: date,time,O,H,L,C,V (MT)  |  6: datetime,O,H,L,C,V (ASCII)  |  5: datetime,O,H,L,C
+_NO_HEADER_NAMES = {
+    8: ["date", "time", "open", "high", "low", "close", "volume", "spread"],
+    7: ["date", "time", "open", "high", "low", "close", "volume"],
+    6: ["datetime", "open", "high", "low", "close", "volume"],
+    5: ["datetime", "open", "high", "low", "close"],
+}
+
+
 def load_csv(
     path: str | Path,
     sep: str | None = None,        # separatore: None => pandas lo inferisce
-    has_header: bool = True,       # True se il CSV ha una riga di intestazione
+    has_header: bool | None = None,  # None => rileva automaticamente l'intestazione
 ) -> pd.DataFrame:
     """
     Carica un file CSV e lo normalizza allo schema canonico.
 
-    Parametri
-    ---------
-    path : str | Path
-        Percorso del CSV (es. esportazione MetaTrader).
-    sep : str | None
-        Separatore di campo. Se None, pandas prova a inferirlo (engine python).
-    has_header : bool
-        Se False, assume il formato MT senza header:
-        date,time,open,high,low,close,volume.
+    Riconosce automaticamente:
+      - presenza/assenza dell'intestazione (auto se has_header=None);
+      - separatore (virgola/tab/';');
+      - export MT (date,time,...) e ASCII HistData (datetime unico 'YYYYMMDD HHMMSS').
 
-    Ritorna
-    -------
-    pd.DataFrame
-        Dati normalizzati [open, high, low, close, volume] con indice temporale.
+    Ritorna un DataFrame [open, high, low, close, volume(, spread)] con indice
+    temporale.
     """
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"CSV non trovato: {path}")
 
+    if has_header is None:                 # auto-rilevamento robusto
+        has_header = _detect_header(path)
+
     if has_header:
         # sep=None + engine='python' lascia che pandas deduca virgola/tab/;.
         raw = pd.read_csv(path, sep=sep, engine="python")
     else:
-        # Formato MetaTrader classico senza intestazione: assegniamo noi i nomi.
-        names = ["date", "time", "open", "high", "low", "close", "volume"]
-        raw = pd.read_csv(path, sep=sep, engine="python", header=None, names=names)
+        # Senza intestazione: leggiamo, contiamo le colonne e assegniamo i nomi.
+        raw = pd.read_csv(path, sep=sep, engine="python", header=None)
+        names = _NO_HEADER_NAMES.get(raw.shape[1])
+        if names is None:                  # numero di colonne inatteso: fallback ai primi 5+
+            base = ["datetime", "open", "high", "low", "close", "volume", "spread"]
+            names = base[: raw.shape[1]]
+        raw.columns = names
 
-    logger.info("Caricato CSV %s: %d righe grezze", path.name, len(raw))
+    logger.info("Caricato CSV %s: %d righe grezze (header=%s)",
+                path.name, len(raw), has_header)
     return load_dataframe(raw)  # riusiamo la normalizzazione comune

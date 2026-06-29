@@ -26,15 +26,34 @@ from trading_ai.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _find_local_csv(symbol: str, datasets_dir: Path) -> Path | None:
-    """Cerca in /datasets un CSV il cui nome contiene il simbolo (case-insensitive)."""
+def _find_local_files(symbol: str, datasets_dir: Path) -> list[Path]:
+    """
+    Cerca in /datasets TUTTI i file (CSV/TXT) il cui nome contiene il simbolo.
+    Ritorna la lista ordinata: cosi' piu' file annuali dello stesso strumento
+    vengono trovati e poi fusi in un'unica serie continua.
+    """
     if not datasets_dir.exists():
-        return None
+        return []
     sym = symbol.lower().replace("/", "").replace("=x", "")
-    for p in sorted(datasets_dir.glob("*.csv")):
-        if sym in p.stem.lower().replace("_", "").replace("-", ""):
-            return p
-    return None
+    found = []
+    for pattern in ("*.csv", "*.txt"):
+        for p in datasets_dir.glob(pattern):
+            stem = p.stem.lower().replace("_", "").replace("-", "")
+            if sym in stem:
+                found.append(p)
+    return sorted(found)
+
+
+def _load_and_merge(files: list[Path]) -> pd.DataFrame:
+    """Carica e fonde piu' file in un'unica serie ordinata e deduplicata."""
+    frames = [load_csv(f) for f in files]
+    df = pd.concat(frames).sort_index()
+    df = df[~df.index.duplicated(keep="last")]         # rimuoviamo eventuali sovrapposizioni
+    # Conserviamo il point_value (le operazioni pandas possono perdere attrs).
+    pv = next((f.attrs.get("point_value") for f in frames if f.attrs.get("point_value")), None)
+    if pv:
+        df.attrs["point_value"] = pv
+    return df
 
 
 def _try_download(symbol: str, period: str, interval: str) -> pd.DataFrame | None:
@@ -81,11 +100,14 @@ def acquire(
     """
     datasets_dir = datasets_dir or PATHS.datasets
 
-    # 1) CSV locale.
-    csv = _find_local_csv(symbol, datasets_dir)
-    if csv is not None:
-        logger.info("Dati per %s da CSV locale: %s", symbol, csv.name)
-        return load_csv(csv), f"csv:{csv.name}"
+    # 1) File locali (uno o piu' anni dello stesso strumento, fusi insieme).
+    files = _find_local_files(symbol, datasets_dir)
+    if files:
+        names = ", ".join(p.name for p in files)
+        logger.info("Dati per %s da %d file locale/i: %s", symbol, len(files), names)
+        df = _load_and_merge(files) if len(files) > 1 else load_csv(files[0])
+        src = f"csv:{files[0].name}" if len(files) == 1 else f"csv:{len(files)} file"
+        return df, src
 
     # 2) Download opzionale.
     if allow_download:

@@ -48,6 +48,23 @@ def test_acquire_prefers_local_csv(tmp_path):
     assert len(df) == 2
 
 
+def test_acquire_merges_multiple_yearly_files(tmp_path):
+    """Piu' file annuali dello stesso strumento vengono fusi in una serie unica."""
+    (tmp_path / "DAT_MT_XAUUSD_M1_2023.csv").write_text(
+        "2023.12.31,23:58,2062.0,2063.0,2061.0,2062.5,0\n"
+        "2023.12.31,23:59,2062.5,2063.5,2062.0,2063.0,0\n"
+    )
+    (tmp_path / "DAT_MT_XAUUSD_M1_2024.csv").write_text(
+        "2024.01.01,00:00,2063.0,2064.0,2062.5,2063.5,0\n"
+        "2024.01.01,00:01,2063.5,2064.5,2063.0,2064.0,0\n"
+    )
+    df, source = acquire("XAUUSD", datasets_dir=tmp_path, allow_download=False)
+    assert "2 file" in source            # due file fusi
+    assert len(df) == 4
+    assert df.index.is_monotonic_increasing   # ordinati cronologicamente
+    assert not df.index.has_duplicates
+
+
 # --- Persistenza -------------------------------------------------------------
 def test_save_load_object_roundtrip(tmp_path):
     """save_object/load_object devono restituire un oggetto equivalente."""

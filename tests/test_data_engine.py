@@ -72,6 +72,31 @@ def test_loader_real_metatrader_export(tmp_path):
     assert df.attrs["point_value"] == pytest.approx(0.001)
 
 
+def test_loader_autodetects_histdata_no_header(tmp_path):
+    """Formato HistData MT senza intestazione (virgola, date,time separati)."""
+    csv = tmp_path / "DAT_MT_XAUUSD_M1_2024.csv"
+    csv.write_text(
+        "2024.01.01,18:00,2062.598,2064.525,2062.405,2064.235,0\n"
+        "2024.01.01,18:01,2063.795,2064.135,2063.435,2064.125,0\n"
+    )
+    df = load_csv(csv)                       # has_header=None -> auto
+    assert list(df.columns) == ["open", "high", "low", "close", "volume"]
+    assert df.index[0] == pd.Timestamp("2024-01-01 18:00")
+    assert df.attrs["point_value"] == pytest.approx(0.001)
+
+
+def test_loader_autodetects_ascii_single_datetime(tmp_path):
+    """Formato ASCII HistData: 'YYYYMMDD HHMMSS;O;H;L;C;V', datetime unico."""
+    csv = tmp_path / "DAT_ASCII_EURUSD_M1.csv"
+    csv.write_text(
+        "20240101 180000;1.10410;1.10420;1.10400;1.10415;0\n"
+        "20240101 180100;1.10415;1.10430;1.10410;1.10425;0\n"
+    )
+    df = load_csv(csv)
+    assert list(df.columns) == ["open", "high", "low", "close", "volume"]
+    assert df.index[0] == pd.Timestamp("2024-01-01 18:00:00")
+
+
 def test_resample_averages_spread(tmp_path):
     """Lo spread (in punti) deve essere mediato nel resampling, non sommato."""
     csv = tmp_path / "XAU.csv"
