@@ -101,6 +101,32 @@ def test_registry_is_populated():
         assert expected in names
 
 
+def test_vwap_handles_zero_volume():
+    """Con volume tutto a zero (tipico HistData/Forex) il VWAP non deve essere NaN."""
+    from trading_ai.feature_engineering.indicators import vwap
+    idx = pd.date_range("2024-01-01", periods=50, freq="h")
+    data = pd.DataFrame({
+        "open": np.linspace(100, 101, 50), "high": np.linspace(100.5, 101.5, 50),
+        "low": np.linspace(99.5, 100.5, 50), "close": np.linspace(100, 101, 50),
+        "volume": 0.0,                       # volume nullo ovunque
+    }, index=idx)
+    out = vwap(data)
+    assert out.notna().all()                 # nessun NaN: usa pesi uniformi
+
+
+def test_features_survive_zero_volume_data():
+    """L'intera estrazione feature non deve azzerare le righe con volume nullo."""
+    idx = pd.date_range("2024-01-01", periods=3000, freq="min")
+    rng = np.random.default_rng(0)
+    close = pd.Series(100 + np.cumsum(rng.normal(0, 0.05, 3000)), index=idx)
+    data = pd.DataFrame({
+        "open": close.shift(1).fillna(close.iloc[0]),
+        "high": close + 0.05, "low": close - 0.05, "close": close, "volume": 0.0,
+    }, index=idx)
+    out = FeatureEngine().transform(data, groups=["indicator", "volatility"], dropna=True)
+    assert len(out) > 0                       # restano righe dopo il dropna
+
+
 def test_can_add_custom_feature(df):
     """Estensibilita': una nuova feature via decoratore deve comparire nell'output."""
     name = "test_body_size"

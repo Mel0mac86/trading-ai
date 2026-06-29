@@ -137,7 +137,9 @@ def vwap(df: pd.DataFrame) -> pd.Series:
     cumulata del prezzo tipico) per non rompere la pipeline.
     """
     typical = (df["high"] + df["low"] + df["close"]) / 3.0
-    if "volume" in df.columns:
+    # Pesi = volume; ma se il volume manca O e' tutto zero (tipico dei dati
+    # HistData/Forex), ripieghiamo su pesi uniformi per non produrre tutti NaN.
+    if "volume" in df.columns and float(df["volume"].fillna(0.0).abs().sum()) > 0.0:
         vol = df["volume"].fillna(0.0)
     else:
         vol = pd.Series(1.0, index=df.index)            # peso uniforme se niente volume
