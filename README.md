@@ -25,7 +25,8 @@ trading-ai/
 │   ├── utils/             # logging e I/O (Parquet) condivisi
 │   ├── data_engine/       # MODULO 1 (loader, cleaner, resampler, normalizer)
 │   ├── feature_engineering/ # MODULO 2 (indicatori, candlestick, market structure)
-│   └── pattern_discovery/ # MODULO 3 (clustering, labeling, metriche, validazione OOS)
+│   ├── pattern_discovery/ # MODULO 3 (clustering, labeling, metriche, validazione OOS)
+│   └── strategy_generator/ # MODULO 4 (risk, filtri, backtester event-driven)
 ├── notebooks/             # notebook Kaggle (uno per modulo)
 ├── datasets/              # dati (non versionati, vedi .gitignore)
 ├── models/                # modelli ML serializzati
@@ -43,7 +44,7 @@ trading-ai/
 | 1 | **Data Engine** — import, pulizia, resampling, normalizzazione | ✅ Completato |
 | 2 | **Feature Engineering** — ATR, RSI, MACD, ADX, EMA/SMA, VWAP, Bollinger, pattern, FVG, BOS/CHoCH, swing, S/R, liquidità, volatilità, trend strength | ✅ Completato |
 | 3 | **Pattern Discovery** — scoperta non supervisionata via ML + statistica, validazione OOS | ✅ Completato |
-| 4 | Strategy Generator — entry/exit/SL/TP/BE/trailing/filtri | ⏳ |
+| 4 | **Strategy Generator** — entry/exit/SL/TP/BE/trailing/filtri + backtester | ✅ Completato |
 | 5 | Validation — walk-forward, OOS, Monte Carlo, robustness, sensitivity | ⏳ |
 | 6 | EA Generator — export MQL4/MQL5 compilabile | ⏳ |
 | 7 | AI Feedback — analisi errori e ottimizzazione iterativa | ⏳ |
