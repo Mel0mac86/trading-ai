@@ -50,6 +50,7 @@ class PipelineConfig:
     timeframe: str = "H1"              # timeframe operativo (Modulo 1)
     horizon: int = 10                  # orizzonte outcome (Modulo 3)
     n_clusters: int = 25               # numero pattern candidati (Modulo 3)
+    min_frequency: float = 0.001       # frequenza minima (bassa: il DSR e' il vero gate di significativita')
     min_profit_factor: float = 1.1     # soglia OOS (Modulo 3)
     min_count_test: int = 20           # trade OOS minimi (Modulo 3)
     use_dsr: bool = True               # correzione multiple testing (Deflated Sharpe)
@@ -125,6 +126,7 @@ def run_pipeline(df: pd.DataFrame, config: PipelineConfig | None = None) -> Pipe
     # --- Modulo 3: scoperta pattern + validazione OOS -----------------------
     disc = PatternDiscovery(
         n_clusters=cfg.n_clusters, horizon=cfg.horizon,
+        min_frequency=cfg.min_frequency,
         min_profit_factor=cfg.min_profit_factor, min_count_test=cfg.min_count_test,
         feature_columns=feature_cols, use_dsr=cfg.use_dsr, min_dsr=cfg.min_dsr,
     )
