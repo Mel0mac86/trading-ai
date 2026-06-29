@@ -19,7 +19,8 @@ sia da script sia da notebook Kaggle.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 
 import pandas as pd
 
@@ -55,6 +56,10 @@ class PipelineConfig:
     validate: bool = True              # esegui il Modulo 5
     make_reports: bool = True          # esegui il Modulo 9
     export_ea: bool = True             # esegui il Modulo 6
+    instrument: str = ""               # prefisso per i nomi strategia (evita collisioni multi-strumento)
+    reports_dir: "Path | None" = None  # cartella report (default: /reports)
+    mql4_dir: "Path | None" = None     # cartella export MQL4 (default: /mql4)
+    mql5_dir: "Path | None" = None     # cartella export MQL5 (default: /mql5)
 
 
 @dataclass
@@ -108,6 +113,9 @@ def run_pipeline(df: pd.DataFrame, config: PipelineConfig | None = None) -> Pipe
     # --- Modulo 4: strategie dai pattern stabili ----------------------------
     gen = StrategyGenerator(disc, risk=cfg.risk, filters=cfg.filters, costs=cfg.costs)
     strategies = gen.build()
+    # Prefisso strumento sui nomi (evita collisioni di file tra strumenti diversi).
+    if cfg.instrument:
+        strategies = [replace(s, name=f"{cfg.instrument}_{s.name}") for s in strategies]
 
     # --- Modulo 5: validazione robustezza -----------------------------------
     validation_table = None
@@ -127,7 +135,7 @@ def run_pipeline(df: pd.DataFrame, config: PipelineConfig | None = None) -> Pipe
     # --- Modulo 9: report ----------------------------------------------------
     reports_out = []
     if cfg.make_reports:
-        rep = ReportGenerator()
+        rep = ReportGenerator(reports_dir=cfg.reports_dir)
         for s in robust_strategies:
             res = s.run(feats)
             reports_out.append(
@@ -137,7 +145,7 @@ def run_pipeline(df: pd.DataFrame, config: PipelineConfig | None = None) -> Pipe
     # --- Modulo 6: export EA -------------------------------------------------
     ea_files = []
     if cfg.export_ea and robust_strategies:
-        eag = EAGenerator()
+        eag = EAGenerator(mql4_dir=cfg.mql4_dir, mql5_dir=cfg.mql5_dir)
         ea_files = eag.export_many(robust_strategies)  # ignora con log le non esportabili
 
     logger.info(

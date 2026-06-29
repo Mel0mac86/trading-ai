@@ -64,6 +64,33 @@ end-to-end è orchestrata da `trading_ai/pipeline.py` e dal notebook
 
 ```bash
 pip install -r requirements.txt
+# oppure, per il comando CLI installato:
+pip install -e .
+```
+
+## Autopilota (zero input)
+
+La piattaforma gira **da sola, senza inserire nulla**: acquisisce i dati (CSV
+locali in `datasets/` → download opzionale → fallback sintetico garantito),
+esegue l'intera pipeline su più strumenti, valida, genera report ed EA,
+**persiste i modelli** e scrive un report consolidato per ogni run.
+
+```bash
+python -m trading_ai                       # run completa con i default
+python -m trading_ai --instruments EURUSD XAUUSD US500
+python -m trading_ai --config config/default.yaml
+python -m trading_ai --no-download         # solo dati locali/sintetici
+```
+
+Output di ogni run (timestamped):
+
+```
+reports/runs/<run>/manifest.json   # esiti macchina-leggibili
+reports/runs/<run>/summary.md      # sintesi + strategie robuste
+reports/runs/<run>/<Strategia>/    # report di dettaglio (equity, drawdown...)
+models/<run>/<strumento>/          # clusterer e strategie serializzati (joblib)
+mql4/  mql5/                       # Expert Advisor esportati
+logs/autopilot_<run>.log           # log completo dell'esecuzione
 ```
 
 ## Esempio rapido (Modulo 1)
