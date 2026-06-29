@@ -27,7 +27,8 @@ trading-ai/
 │   ├── feature_engineering/ # MODULO 2 (indicatori, candlestick, market structure)
 │   ├── pattern_discovery/ # MODULO 3 (clustering, labeling, metriche, validazione OOS)
 │   ├── strategy_generator/ # MODULO 4 (risk, filtri, backtester event-driven)
-│   └── validation/        # MODULO 5 (walk-forward, monte carlo, robustness)
+│   ├── validation/        # MODULO 5 (walk-forward, monte carlo, robustness)
+│   └── ea_generator/      # MODULO 6 (export MQL4/MQL5 con modello embeddato)
 ├── notebooks/             # notebook Kaggle (uno per modulo)
 ├── datasets/              # dati (non versionati, vedi .gitignore)
 ├── models/                # modelli ML serializzati
@@ -47,7 +48,7 @@ trading-ai/
 | 3 | **Pattern Discovery** — scoperta non supervisionata via ML + statistica, validazione OOS | ✅ Completato |
 | 4 | **Strategy Generator** — entry/exit/SL/TP/BE/trailing/filtri + backtester | ✅ Completato |
 | 5 | **Validation** — walk-forward, OOS, Monte Carlo, robustness, sensitivity | ✅ Completato |
-| 6 | EA Generator — export MQL4/MQL5 compilabile | ⏳ |
+| 6 | **EA Generator** — export MQL4/MQL5 con modello KMeans embeddato | ✅ Completato |
 | 7 | AI Feedback — analisi errori e ottimizzazione iterativa | ⏳ |
 | 8 | GitHub — organizzazione automatica del repo | ✅ (struttura attiva) |
 | 9 | Report — equity, drawdown, Sharpe/Sortino/Calmar, ecc. | ⏳ |

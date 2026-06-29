@@ -69,6 +69,7 @@ class PatternDiscovery:
         min_profit_factor: float = 1.1,  # profit factor minimo OOS
         min_count_test: int = 20,     # numero minimo di trade OOS per significativita'
         random_state: int = 42,
+        feature_columns: list[str] | None = None,  # restringe le feature usate (es. set esportabile EA)
     ):
         self.n_clusters = n_clusters
         self.horizon = horizon
@@ -77,6 +78,7 @@ class PatternDiscovery:
         self.min_profit_factor = min_profit_factor
         self.min_count_test = min_count_test
         self.random_state = random_state
+        self.feature_columns = feature_columns
         self.clusterer: FeatureClusterer | None = None
         self.patterns_: list[DiscoveredPattern] = []
 
@@ -110,7 +112,8 @@ class PatternDiscovery:
         dur_te = exc["tt_peak"].iloc[split:]
 
         # --- 3) Clustering addestrato SOLO sul train ------------------------
-        self.clusterer = FeatureClusterer(self.n_clusters, self.random_state)
+        self.clusterer = FeatureClusterer(self.n_clusters, self.random_state,
+                                          feature_columns=self.feature_columns)
         labels_tr = self.clusterer.fit_predict(train_df)   # fit+predict sul train
         labels_te = self.clusterer.predict(test_df)        # solo predict sul test
 
