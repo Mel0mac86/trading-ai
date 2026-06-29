@@ -23,7 +23,8 @@ trading-ai/
 ├── trading_ai/            # package core riutilizzabile
 │   ├── config.py          # percorsi, timeframe, schema colonne canonico
 │   ├── utils/             # logging e I/O (Parquet) condivisi
-│   └── data_engine/       # MODULO 1 (loader, cleaner, resampler, normalizer)
+│   ├── data_engine/       # MODULO 1 (loader, cleaner, resampler, normalizer)
+│   └── feature_engineering/ # MODULO 2 (indicatori, candlestick, market structure)
 ├── notebooks/             # notebook Kaggle (uno per modulo)
 ├── datasets/              # dati (non versionati, vedi .gitignore)
 ├── models/                # modelli ML serializzati
@@ -39,7 +40,7 @@ trading-ai/
 | # | Modulo | Stato |
 |---|--------|-------|
 | 1 | **Data Engine** — import, pulizia, resampling, normalizzazione | ✅ Completato |
-| 2 | Feature Engineering — ATR, RSI, MACD, ADX, EMA/SMA, VWAP, Bollinger, pattern, FVG, BOS/CHoCH, swing, S/R, liquidità, volatilità, trend strength | ⏳ In arrivo |
+| 2 | **Feature Engineering** — ATR, RSI, MACD, ADX, EMA/SMA, VWAP, Bollinger, pattern, FVG, BOS/CHoCH, swing, S/R, liquidità, volatilità, trend strength | ✅ Completato |
 | 3 | Pattern Discovery — scoperta non supervisionata via ML + statistica | ⏳ |
 | 4 | Strategy Generator — entry/exit/SL/TP/BE/trailing/filtri | ⏳ |
 | 5 | Validation — walk-forward, OOS, Monte Carlo, robustness, sensitivity | ⏳ |
