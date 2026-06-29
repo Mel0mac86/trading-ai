@@ -83,3 +83,37 @@ jobs:
             mql5/*.mq5
           if-no-files-found: ignore
           retention-days: 30
+
+      - name: Notifica Telegram (riepilogo + EA)
+        if: always()                 # avvisa anche in caso di fallimento
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          # Notifica opzionale: attiva solo se i due secret Telegram sono presenti.
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Secret Telegram assenti: notifica saltata."; exit 0
+          fi
+          API="https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN"
+          # Riepilogo: la summary.md piu' recente, o un messaggio di esito.
+          SUMMARY="$(find reports/runs -name summary.md 2>/dev/null | sort | tail -1)"
+          if [ -n "$SUMMARY" ]; then
+            MSG="$(head -c 3500 "$SUMMARY")"
+          else
+            MSG="Autopilot $(date -u +'%Y-%m-%d %H:%M UTC'): run conclusa (esito ${{ job.status }})."
+          fi
+          curl -s -X POST "$API/sendMessage" \
+            --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
+            --data-urlencode "text=$MSG" >/dev/null || true
+          # Allega gli EA generati (se presenti) come documenti.
+          for f in mql5/*.mq5 mql4/*.mq4; do
+            [ -e "$f" ] || continue
+            curl -s -F "chat_id=$TELEGRAM_CHAT_ID" -F "document=@$f" \
+              "$API/sendDocument" >/dev/null || true
+          done
+          # Allega il grafico equity, se prodotto.
+          EQ="$(find reports/runs -name equity.png 2>/dev/null | sort | tail -1)"
+          if [ -n "$EQ" ]; then
+            curl -s -F "chat_id=$TELEGRAM_CHAT_ID" -F "photo=@$EQ" \
+              "$API/sendPhoto" >/dev/null || true
+          fi
