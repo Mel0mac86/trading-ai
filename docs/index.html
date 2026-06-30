@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0d1117" />
+  <title>AI Trading</title>
+
+  <!-- PWA / iOS install -->
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AI Trading" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <img class="logo" src="./icons/icon-192.png" alt="" />
+      <div class="title">
+        <b>AI Trading</b>
+        <span id="subtitle">piattaforma trading-ai</span>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="newChat" title="Nuova chat">✎</button>
+      <button class="icon-btn" id="openSettings" title="Impostazioni">⚙︎</button>
+    </header>
+
+    <main id="chat" aria-live="polite"></main>
+
+    <form id="composer">
+      <textarea id="input" rows="1" placeholder="Scrivi all'AI Trading…" autocomplete="off"></textarea>
+      <button id="send" type="submit" title="Invia">➤</button>
+    </form>
+  </div>
+
+  <!-- Modal impostazioni -->
+  <div class="modal-bg" id="settingsModal">
+    <div class="modal">
+      <h3>Impostazioni</h3>
+      <p>La chiave API resta <b>solo su questo telefono</b> (memoria locale del browser). Non viene mai inviata a GitHub né a nessun server tranne Anthropic.</p>
+
+      <label for="apiKey">Chiave API Anthropic</label>
+      <input id="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off" />
+
+      <label for="model">Modello</label>
+      <select id="model">
+        <option value="claude-opus-4-8">Claude Opus 4.8 (consigliato)</option>
+        <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (più economico)</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5 (veloce)</option>
+      </select>
+
+      <div class="warn">
+        ⚠️ Se hai incollato una chiave in una chat o in un posto pubblico,
+        <b>revocala</b> e creane una nuova su console.anthropic.com.
+      </div>
+
+      <div class="row">
+        <button class="btn" type="button" id="closeSettings">Annulla</button>
+        <button class="btn primary" type="button" id="saveSettings">Salva</button>
+      </div>
+      <div class="row">
+        <button class="btn danger" type="button" id="clearAll">Cancella chiave e cronologia</button>
+      </div>
+
+      <p class="hint">
+        La chiave si crea su <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com → API Keys</a>.
+        Richiede crediti sul tuo account Anthropic.
+      </p>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
