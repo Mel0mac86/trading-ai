@@ -1,0 +1,49 @@
+# Pubblica la PWA (cartella /docs) su GitHub Pages.
+# Sceglie da solo la sorgente giusta: NON serve impostare branch/cartella a mano.
+# La prima esecuzione ATTIVA Pages in modalita' "GitHub Actions" (enablement).
+name: Deploy PWA (Pages)
+
+on:
+  push:
+    branches:
+      - main
+      - claude/ai-trading-platform-1pkxwb
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:        # lancio manuale dalla tab "Actions"
+
+# Permessi necessari al deploy su Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un solo deploy alla volta (l'ultimo vince).
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configura Pages (attiva la modalita' GitHub Actions)
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true          # abilita Pages se non lo e' gia'
+
+      - name: Carica il sito (solo la cartella /docs)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy su Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

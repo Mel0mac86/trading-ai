@@ -15,7 +15,7 @@ import pytest
 
 from trading_ai.autopilot import AutopilotConfig, run_autopilot
 from trading_ai.data_engine import generate_ohlcv
-from trading_ai.data_engine.sources import acquire
+from trading_ai.data_engine.sources import acquire, discover_instruments, _find_local_files
 from trading_ai.feature_engineering import FeatureEngine
 from trading_ai.persistence import (
     load_object, load_strategy, save_object, save_strategy,
@@ -63,6 +63,51 @@ def test_acquire_merges_multiple_yearly_files(tmp_path):
     assert len(df) == 4
     assert df.index.is_monotonic_increasing   # ordinati cronologicamente
     assert not df.index.has_duplicates
+
+
+# --- Dataset multi-strumento / multi-timeframe -------------------------------
+def _write_bar(p: Path, n: int = 2):
+    p.parent.mkdir(parents=True, exist_ok=True)
+    rows = "".join(
+        f"2024.01.01,{i:02d}:00,2000.{i},2001.{i},1999.{i},2000.{i},0\n" for i in range(n)
+    )
+    p.write_text(rows)
+
+
+def test_find_local_files_is_recursive(tmp_path):
+    """Trova i file anche in sottocartelle (dataset organizzati per strumento)."""
+    _write_bar(tmp_path / "XAUUSD" / "XAUUSD_H1_2024.csv")
+    _write_bar(tmp_path / "EURUSD" / "EURUSD_H1_2024.csv")
+    found = _find_local_files("XAUUSD", tmp_path)
+    assert len(found) == 1 and "XAUUSD" in found[0].name
+
+
+def test_find_local_files_timeframe_filter(tmp_path):
+    """Con `contains` si isola il timeframe voluto (dataset multi-TF)."""
+    _write_bar(tmp_path / "XAUUSD_M15.csv")
+    _write_bar(tmp_path / "XAUUSD_H1.csv")
+    _write_bar(tmp_path / "XAUUSD_H4.csv")
+    assert len(_find_local_files("XAUUSD", tmp_path)) == 3            # senza filtro: tutti
+    only_h1 = _find_local_files("XAUUSD", tmp_path, contains="H1")
+    assert len(only_h1) == 1 and "H1" in only_h1[0].name
+
+
+def test_discover_instruments(tmp_path):
+    """Scopre da sola gli strumenti presenti in un dataset multi-strumento."""
+    _write_bar(tmp_path / "fx" / "EURUSD_H1.csv")
+    _write_bar(tmp_path / "metals" / "XAUUSD_H1.csv")
+    _write_bar(tmp_path / "indices" / "US500_H1.csv")
+    found = set(discover_instruments(tmp_path))
+    assert {"EURUSD", "XAUUSD", "US500"} <= found
+
+
+def test_acquire_contains_filter_no_merge(tmp_path):
+    """acquire con `contains` carica solo il timeframe scelto, senza fondere gli altri."""
+    _write_bar(tmp_path / "XAUUSD_M15.csv", n=2)
+    _write_bar(tmp_path / "XAUUSD_H1.csv", n=3)
+    df, source = acquire("XAUUSD", datasets_dir=tmp_path, allow_download=False, contains="H1")
+    assert "locale" in source
+    assert len(df) == 3            # solo il file H1, non fuso con M15
 
 
 # --- Persistenza -------------------------------------------------------------
