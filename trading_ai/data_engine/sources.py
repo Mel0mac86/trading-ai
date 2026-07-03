@@ -26,22 +26,61 @@ from trading_ai.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _find_local_files(symbol: str, datasets_dir: Path) -> list[Path]:
+def _norm(s: str) -> str:
+    """Normalizza un nome per il matching: minuscolo, senza separatori comuni."""
+    return s.lower().replace("/", "").replace("=x", "").replace("_", "").replace("-", "").replace(" ", "")
+
+
+def _find_local_files(symbol: str, datasets_dir: Path, contains: str | None = None) -> list[Path]:
     """
-    Cerca in /datasets TUTTI i file (CSV/TXT) il cui nome contiene il simbolo.
-    Ritorna la lista ordinata: cosi' piu' file annuali dello stesso strumento
-    vengono trovati e poi fusi in un'unica serie continua.
+    Cerca RICORSIVAMENTE in `datasets_dir` tutti i file (CSV/TXT) il cui nome
+    contiene il simbolo. La ricerca ricorsiva (`rglob`) gestisce i dataset
+    organizzati in sottocartelle (es. per strumento o per timeframe).
+
+    `contains` (opzionale): ulteriore sottostringa che il nome DEVE contenere
+    (es. "M15" o "H1"). Serve per i dataset multi-timeframe, dove altrimenti i
+    file di timeframe diversi dello stesso strumento verrebbero fusi per errore.
+    Ritorna la lista ordinata (file annuali contigui -> serie continua).
     """
     if not datasets_dir.exists():
         return []
-    sym = symbol.lower().replace("/", "").replace("=x", "")
+    sym = _norm(symbol)
+    want = _norm(contains) if contains else None
     found = []
-    for pattern in ("*.csv", "*.txt"):
-        for p in datasets_dir.glob(pattern):
-            stem = p.stem.lower().replace("_", "").replace("-", "")
-            if sym in stem:
-                found.append(p)
+    for p in datasets_dir.rglob("*"):
+        if p.suffix.lower() not in (".csv", ".txt"):
+            continue
+        # Saltiamo la cache dei dataset Kaggle per non duplicare i file.
+        if "_kaggle" in p.parts:
+            continue
+        stem = _norm(p.stem)
+        if sym in stem and (want is None or want in stem):
+            found.append(p)
     return sorted(found)
+
+
+# Simboli noti che proviamo a riconoscere nei nomi file di un dataset
+# multi-strumento (per la scoperta automatica). Non e' esaustivo: l'utente puo'
+# comunque passare i simboli esplicitamente.
+_KNOWN_SYMBOLS = [
+    "XAUUSD", "XAGUSD", "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD",
+    "USDCAD", "NZDUSD", "EURJPY", "GBPJPY", "EURGBP", "US500", "SPX500",
+    "NAS100", "US30", "GER40", "DE40", "UK100", "USOIL", "WTI", "BTCUSD", "ETHUSD",
+]
+
+
+def discover_instruments(datasets_dir: Path, known: list[str] | None = None) -> list[str]:
+    """
+    Esamina i nomi dei file in `datasets_dir` (ricorsivo) e ritorna i simboli
+    noti effettivamente presenti. Utile per i dataset multi-strumento: si scopre
+    da soli cosa analizzare, senza elencare gli strumenti a mano.
+    """
+    if not datasets_dir.exists():
+        return []
+    symbols = known or _KNOWN_SYMBOLS
+    blob = " ".join(_norm(p.stem) for p in datasets_dir.rglob("*")
+                    if p.suffix.lower() in (".csv", ".txt") and "_kaggle" not in p.parts)
+    return [s for s in symbols if _norm(s) in blob]
 
 
 def _load_and_merge(files: list[Path]) -> pd.DataFrame:
@@ -111,6 +150,7 @@ def acquire(
     datasets_dir: Path | None = None,
     allow_download: bool = True,
     kaggle_dataset: str | None = None,   # slug 'owner/dataset' da cui scaricare i dati
+    contains: str | None = None,         # sottostringa extra nel nome file (es. "M15": dataset multi-TF)
     download_period: str = "2y",
     download_interval: str = "1h",
     synthetic_bars: int = 200_000,
@@ -121,11 +161,15 @@ def acquire(
 
     Ordine: file locali -> dataset Kaggle (se configurato) -> download yfinance
     -> sintetico. Ritorna (df, source) dove source indica la provenienza.
+
+    `contains`: per i dataset multi-timeframe, vincola i file a quelli che
+    contengono anche questa sottostringa (es. "H1"), cosi' non si fondono per
+    errore timeframe diversi dello stesso strumento.
     """
     datasets_dir = datasets_dir or PATHS.datasets
 
     # 1) File locali (uno o piu' anni dello stesso strumento).
-    files = _find_local_files(symbol, datasets_dir)
+    files = _find_local_files(symbol, datasets_dir, contains=contains)
     src_parts = ["locale"] if files else []
 
     # 1b) Se e' configurato un dataset Kaggle, lo scarichiamo (cache sotto
@@ -134,7 +178,7 @@ def acquire(
     if kaggle_dataset:
         cache = datasets_dir / "_kaggle" / kaggle_dataset.replace("/", "_")
         if _try_kaggle_dataset(kaggle_dataset, cache):
-            kfiles = _find_local_files(symbol, cache)
+            kfiles = _find_local_files(symbol, cache, contains=contains)
             if kfiles:
                 files = files + kfiles
                 src_parts.append("kaggle")

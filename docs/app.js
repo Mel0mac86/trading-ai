@@ -56,8 +56,12 @@ COME RISPONDERE
 - Se ti chiedono di "migliorare l'AI": suggerisci piu' strumenti (EURUSD, GBPUSD,
   US500...), piu' timeframe, piu' cluster, GPU su Kaggle, e il ciclo di feedback
   del Modulo 7. Ricorda sempre il rischio di overfitting.
-- Non hai accesso in tempo reale ai file o al mercato: ragioni sulla conoscenza
-  della piattaforma e su cio' che l'utente ti riporta. Dillo se serve.
+- Hai lo strumento di RICERCA WEB: usalo quando la domanda richiede dati o notizie
+  aggiornate (prezzi indicativi, eventi macro, novita' su MetaTrader/broker, come
+  fare qualcosa). Cita le fonti. Per le domande sulla piattaforma rispondi dalla
+  tua conoscenza, senza cercare inutilmente.
+- Non hai accesso diretto ai file del repo o al conto di trading: ragioni sulla
+  conoscenza della piattaforma, sulla ricerca web e su cio' che l'utente ti dice.
 - Mai consigli finanziari garantiti: il trading comporta rischio di perdita.`;
 
 const SUGGESTIONS = [
@@ -219,12 +223,16 @@ async function send() {
   scrollDown();
 
   let acc = "";
+  let status = "";
+  const paint = () => {
+    const badge = status ? `<em style="color:var(--muted)">${status}</em>` : "";
+    aiEl.innerHTML = (acc ? renderMarkdown(acc) : "") + badge + '<span class="cursor">▌</span>';
+    scrollDown();
+  };
   try {
-    await streamCompletion(key, getModel(), messages, (delta) => {
-      acc += delta;
-      aiEl.innerHTML = renderMarkdown(acc) + '<span class="cursor">▌</span>';
-      scrollDown();
-    });
+    await streamCompletion(key, getModel(), messages,
+      (delta) => { acc += delta; paint(); },
+      (st) => { status = st || ""; paint(); });
     aiEl.innerHTML = renderMarkdown(acc || "(nessuna risposta)");
     messages.push({ role: "assistant", content: acc });
     saveHistory();
@@ -239,8 +247,17 @@ async function send() {
   }
 }
 
-// Chiama la Messages API in streaming (SSE) e invoca onDelta(text) per ogni pezzo.
-async function streamCompletion(apiKey, model, msgs, onDelta) {
+// Tipo del tool di ricerca web (server-side Anthropic): varia col modello.
+function webSearchTool(model) {
+  // I modelli 4.6+ usano la variante nuova; gli altri quella base.
+  const isNew = /opus-4-(6|7|8)|sonnet-4-6|fable-5/.test(model);
+  return { type: isNew ? "web_search_20260209" : "web_search_20250305",
+           name: "web_search", max_uses: 5 };
+}
+
+// Chiama la Messages API in streaming (SSE). onDelta(text) per il testo,
+// onStatus(msg|null) per gli stati (es. "sto cercando sul web").
+async function streamCompletion(apiKey, model, msgs, onDelta, onStatus) {
   const resp = await fetch(API_URL, {
     method: "POST",
     headers: {
@@ -251,9 +268,11 @@ async function streamCompletion(apiKey, model, msgs, onDelta) {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 2048,
+      max_tokens: 3072,
       system: SYSTEM_PROMPT,
       stream: true,
+      // Ricerca web server-side: l'AI cerca da sola e cita le fonti quando serve.
+      tools: [webSearchTool(model)],
       messages: msgs.map((m) => ({ role: m.role, content: m.content })),
     }),
   });
@@ -281,7 +300,10 @@ async function streamCompletion(apiKey, model, msgs, onDelta) {
       if (!payload || payload === "[DONE]") continue;
       let evt;
       try { evt = JSON.parse(payload); } catch { continue; }
-      if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+      if (evt.type === "content_block_start" && evt.content_block?.type === "server_tool_use") {
+        onStatus && onStatus("🔎 sto cercando sul web…");
+      } else if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+        onStatus && onStatus(null);           // il testo sta arrivando: via l'indicatore
         onDelta(evt.delta.text);
       } else if (evt.type === "error") {
         throw new Error(evt.error?.message || "Errore dallo streaming.");

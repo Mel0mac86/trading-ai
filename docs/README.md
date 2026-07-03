@@ -39,4 +39,9 @@ creane una nuova.
 L'AI è già "istruita" sulla piattaforma: i 9 moduli, la strategia robusta
 **PAT17_SHORT** su XAUUSD H1, i numeri reali (e quali sono artefatti), e come
 migliorare la ricerca su Kaggle. Puoi chiederle spiegazioni, rischi, prossimi
-passi. Non dà garanzie di guadagno: il trading comporta rischio di perdita.
+passi.
+
+🔎 **Cerca sul web da sola.** Quando la domanda richiede informazioni aggiornate
+(notizie macro, come si fa una cosa su MetaTrader, prezzi indicativi…) l'AI fa
+la ricerca e ti risponde citando le fonti — mostra "🔎 sto cercando sul web…"
+mentre lavora. Non dà garanzie di guadagno: il trading comporta rischio di perdita.
